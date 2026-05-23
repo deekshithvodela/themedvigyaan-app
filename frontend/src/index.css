@@ -1,0 +1,96 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 210 15% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 210 15% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 15% 15%;
+    --primary: 195 65% 38%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 15% 92%;
+    --secondary-foreground: 210 15% 15%;
+    --muted: 210 15% 95%;
+    --muted-foreground: 210 10% 45%;
+    --accent: 190 75% 45%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 15% 88%;
+    --input: 210 15% 90%;
+    --ring: 195 65% 38%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2e7d96;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #236175;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .task-table {
+    font-size: 0.875rem;
+  }
+  
+  .task-table th,
+  .task-table td {
+    padding: 0.75rem;
+  }
+  
+  .thread-card {
+    padding: 0.75rem;
+  }
+  
+  .message-bubble {
+    max-width: 85%;
+  }
+}
+
+/* Ensure touch targets are large enough on mobile */
+@media (max-width: 768px) {
+  button {
+    min-height: 44px;
+  }
+  
+  input,
+  textarea,
+  select {
+    min-height: 44px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
