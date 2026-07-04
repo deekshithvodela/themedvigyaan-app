@@ -551,10 +551,17 @@ async def get_threads(user: User = Depends(get_current_user)):
     return threads
 
 @api_router.post("/threads")
-async def create_thread(data: Dict[str, str], user: User = Depends(get_current_user)):
+async def create_thread(data: Dict[str, Any], user: User = Depends(get_current_user)):
+    title = data.get('title')
+    content = data.get('content')
+    if not title or not content:
+        raise HTTPException(status_code=400, detail="Title and content are required")
+    if not isinstance(title, str) or not isinstance(content, str):
+        raise HTTPException(status_code=400, detail="Title and content must be strings")
+
     thread = Thread(
-        title=data['title'],
-        content=data['content'],
+        title=title,
+        content=content,
         author_id=user.id,
         author_name=user.name
     )
@@ -564,7 +571,7 @@ async def create_thread(data: Dict[str, str], user: User = Depends(get_current_u
     await db.threads.insert_one(doc)
     
     # Send mention notifications
-    await send_mention_notifications(data['content'], user.name, f"/")
+    await send_mention_notifications(content, user.name, f"/")
     
     doc.pop('_id', None)
     await sio.emit('new_thread', doc)
