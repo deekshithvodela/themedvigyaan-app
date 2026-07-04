@@ -76,18 +76,17 @@ agenthub/agents/youtube/db
 # Build caches
 .cache/
 
-# Mobile development
-android-sdk/ frontend/node_modules/.cache/default-development/0.pack
-frontend/node_modules/.cache/default-development/0.pack
--e 
+android-sdk/
+frontend/node_modules/.cache/
+backend/__pycache__/
+backend/.pytest_cache/
+backend/.venv/
+
 # Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 *.env
 *.env.*

@@ -79,12 +79,14 @@ User roles and permissions are dynamically loaded from the database configuratio
 
 ## What's Been Implemented
 
-### July 2026 - Latest Security & Permission Fixes
+### July 2026 - Latest Security, Permission, & UI Fixes
 - [x] Implemented dynamic role permissions stored in MongoDB and fetched at login/session refresh.
 - [x] Replaced hardcoded frontend route/navigation checks with dynamic permissions matrix enforcement.
 - [x] Fixed MongoDB user registration serialization crash (`_id` ObjectId serialization exception).
 - [x] Fixed identical Socket.IO event serialization exceptions in Thread, Reply, Direct Message, and Task creation endpoints.
 - [x] Secured the backend bypass login endpoint to restrict bypass access outside of local mock testing environments.
+- [x] Restructured thread creation validation from strict `Dict[str, str]` to `Dict[str, Any]` with robust type checks.
+- [x] Resolved mobile double-scrollbars and scroll locks globally by enforcing html/body height constraints and smooth `-webkit-overflow-scrolling: touch` inertia.
 
 ### December 2025 - Latest Updates
 - [x] Renamed "Team Lead" role to "Core"
