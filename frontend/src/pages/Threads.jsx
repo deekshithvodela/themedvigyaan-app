@@ -51,7 +51,7 @@ const NestedReply = ({ reply, user, allReplies, onReply, onDelete, depth = 0 }) 
 
   return (
     <div 
-      className={`${depth > 0 ? 'border-l-2 border-slate-200 pl-4 ml-2' : ''}`}
+      className={`${depth > 0 ? 'border-l-2 border-slate-200 pl-1.5 ml-1 sm:pl-4 sm:ml-2' : ''}`}
       data-testid={`nested-reply-${reply.id}`}
     >
       <div className="py-3">

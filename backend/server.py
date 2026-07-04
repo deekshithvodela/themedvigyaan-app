@@ -30,9 +30,15 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+mongo_url = os.environ.get('MONGO_URL', '')
+if mongo_url.startswith('mock') or not mongo_url:
+    from mongomock_motor import AsyncMongoMockClient
+    client = AsyncMongoMockClient()
+    db = client[os.environ.get('DB_NAME', 'medvigyaan_db')]
+    print("Using In-Memory Mock MongoDB client")
+else:
+    client = AsyncIOMotorClient(mongo_url)
+    db = client[os.environ['DB_NAME']]
 
 # Cloudinary config
 cloudinary.config(
@@ -283,6 +289,152 @@ async def send_mention_notifications(text: str, author_name: str, link: str):
                 )
 
 # Auth routes
+@api_router.post("/auth/bypass")
+async def auth_bypass(data: Dict[str, str] = None):
+    # Ensure bypass is only allowed when using mock DB or if explicitly allowed
+    mongo_url = os.environ.get('MONGO_URL', '')
+    allow_bypass = os.environ.get('ALLOW_AUTH_BYPASS', 'false').lower() == 'true'
+    if not (mongo_url.startswith('mock') or not mongo_url) and not allow_bypass:
+        raise HTTPException(
+            status_code=403,
+            detail="Bypass authentication is not allowed in this environment"
+        )
+        
+    # Ensure FIRST_ADMIN_EMAIL is whitelisted and exists
+    admin_email = os.environ.get('FIRST_ADMIN_EMAIL', 'admin@example.com')
+    
+    # Check if first admin exists
+    admin = await db.users.find_one({"email": admin_email}, {"_id": 0})
+    if not admin:
+        admin = {
+            "id": "admin-uuid-1234",
+            "email": admin_email,
+            "name": "MedVigyaan Admin",
+            "picture": "https://lh3.googleusercontent.com/a/default-user=s96-c",
+            "role": "admin",
+            "department": "Cardiology",
+            "phone": "+919876543210",
+            "bio": "Administrator of MedVigyaan Club",
+            "is_active": True,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.users.insert_one(admin)
+        await db.whitelisted_emails.insert_one({
+            "id": str(uuid.uuid4()),
+            "email": admin_email,
+            "added_by": "system",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+        
+        # Seed some dummy data
+        # Whitelist a core member and register them
+        core_email = "core@example.com"
+        await db.whitelisted_emails.insert_one({
+            "id": str(uuid.uuid4()),
+            "email": core_email,
+            "added_by": "admin-uuid-1234",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+        await db.users.insert_one({
+            "id": "core-uuid-1234",
+            "email": core_email,
+            "name": "Dr. Sarah Jenkins",
+            "picture": "https://lh3.googleusercontent.com/a/default-user=s96-c",
+            "role": "core",
+            "department": "Neurology",
+            "phone": "+919876543211",
+            "bio": "Core team member",
+            "is_active": True,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+        
+        # Whitelist a regular member and register them
+        member_email = "member@example.com"
+        await db.whitelisted_emails.insert_one({
+            "id": str(uuid.uuid4()),
+            "email": member_email,
+            "added_by": "admin-uuid-1234",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+        await db.users.insert_one({
+            "id": "member-uuid-1234",
+            "email": member_email,
+            "name": "John Doe",
+            "picture": "https://lh3.googleusercontent.com/a/default-user=s96-c",
+            "role": "member",
+            "department": "Pediatrics",
+            "phone": "+919876543212",
+            "bio": "Research Club Member",
+            "is_active": True,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+        
+        # Seed Feed announcement
+        await db.announcements.insert_one({
+            "id": "ann-1",
+            "title": "Welcome to MedVigyaan Research Club!",
+            "content": "We are excited to launch our new collaboration hub. Explore General Chat, start discussion Threads, and view upcoming events on the Calendar.",
+            "link": "https://github.com",
+            "image_url": "https://customer-assets.emergentagent.com/job_teamchat-portal/artifacts/r1igb56v_logoo.jpg",
+            "created_by": "admin-uuid-1234",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+        
+        # Seed Group Chat message
+        await db.group_messages.insert_one({
+            "id": "msg-1",
+            "sender_id": "core-uuid-1234",
+            "sender_name": "Dr. Sarah Jenkins",
+            "content": "Hello everyone! Welcome to the general chat. Feel free to ask questions here.",
+            "reply_to_id": None,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+        
+        # Seed Thread
+        await db.threads.insert_one({
+            "id": "thread-1",
+            "title": "Discussion on AI in Modern Cardiology",
+            "author_id": "admin-uuid-1234",
+            "author_name": "MedVigyaan Admin",
+            "content": "What are your thoughts on the use of deep learning models for detecting arrhythmias from ECG signals? Let's discuss!",
+            "replies_count": 1,
+            "last_activity": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+        await db.replies.insert_one({
+            "id": "reply-1",
+            "thread_id": "thread-1",
+            "author_id": "core-uuid-1234",
+            "author_name": "Dr. Sarah Jenkins",
+            "content": "It's highly promising! Recent models are matching cardiologist performance in many common arrhythmias.",
+            "parent_reply_id": None,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+        
+        # Seed Link Config
+        await db.link_configs.insert_one({
+            "id": "link-1",
+            "url": "https://github.com/deekshithvodela/themedvigyaan-app",
+            "label": "MedVigyaan GitHub",
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        })
+
+    # Return JWT token for requested role
+    role = (data or {}).get('role', 'admin')
+    user = None
+    if role == 'admin':
+        user = await db.users.find_one({"email": admin_email}, {"_id": 0})
+    elif role == 'core':
+        user = await db.users.find_one({"email": "core@example.com"}, {"_id": 0})
+    else:
+        user = await db.users.find_one({"email": "member@example.com"}, {"_id": 0})
+        
+    jwt_token = create_token(user['id'], user['email'])
+    return {
+        "token": jwt_token,
+        "user": user
+    }
+
 @api_router.post("/auth/google")
 async def google_auth(data: Dict[str, str]):
     try:
@@ -354,6 +506,7 @@ async def register(data: Dict[str, Any]):
         
         await db.users.insert_one(user_data)
         jwt_token = create_token(user_data['id'], email)
+        user_data.pop('_id', None)
         
         return {
             "token": jwt_token,
@@ -413,6 +566,7 @@ async def create_thread(data: Dict[str, str], user: User = Depends(get_current_u
     # Send mention notifications
     await send_mention_notifications(data['content'], user.name, f"/")
     
+    doc.pop('_id', None)
     await sio.emit('new_thread', doc)
     return thread
 
@@ -449,6 +603,7 @@ async def create_reply(thread_id: str, data: Dict[str, Any], user: User = Depend
     # Send mention notifications
     await send_mention_notifications(data['content'], user.name, f"/")
     
+    doc.pop('_id', None)
     await sio.emit('new_reply', doc)
     return reply
 
@@ -506,6 +661,7 @@ async def send_message(data: Dict[str, Any], user: User = Depends(get_current_us
     await db.direct_messages.insert_one(doc)
     
     if receiver:
+        doc.pop('_id', None)
         await sio.emit('new_message', doc, room=receiver['id'])
     
     return message
@@ -648,6 +804,7 @@ async def create_task(data: Dict[str, Any], user: User = Depends(check_admin_or_
     doc['deadline'] = doc['deadline'].isoformat()
     doc['created_at'] = doc['created_at'].isoformat()
     await db.tasks.insert_one(doc)
+    doc.pop('_id', None)
     await sio.emit('new_task', doc)
     return task
 
@@ -1178,7 +1335,7 @@ async def update_link_config(data: Dict[str, Any], admin: User = Depends(check_a
 
 # Role Permissions routes
 @api_router.get("/admin/role-permissions")
-async def get_role_permissions(admin: User = Depends(check_admin)):
+async def get_role_permissions(user: User = Depends(get_current_user)):
     config = await db.role_permissions.find_one({}, {"_id": 0})
     return config or {}
 

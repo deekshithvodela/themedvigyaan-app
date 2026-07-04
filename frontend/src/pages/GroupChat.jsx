@@ -96,7 +96,7 @@ const GroupChat = ({ user }) => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden" data-testid="group-chat-page">
+    <div className="flex flex-col h-[calc(100vh-12rem)] lg:h-[calc(100vh-8rem)] bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden" data-testid="group-chat-page">
       {/* Header */}
       <div className="p-4 border-b border-slate-200 bg-slate-50">
         <div className="flex items-center gap-3">
@@ -157,7 +157,7 @@ const GroupChat = ({ user }) => {
                       <p className="text-xs">
                         {format(new Date(msg.created_at), 'HH:mm')}
                       </p>
-                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                         {!msg.deleted && (
                           <button
                             onClick={() => setReplyingTo(msg)}

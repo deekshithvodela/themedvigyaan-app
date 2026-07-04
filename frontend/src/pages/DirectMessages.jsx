@@ -303,7 +303,7 @@ const DirectMessages = ({ user }) => {
                             {!isDeleted && (
                               <button
                                 onClick={() => setReplyingTo(msg)}
-                                className={`text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ${
+                                className={`text-xs lg:opacity-0 lg:group-hover:opacity-100 transition-opacity flex items-center gap-1 ${
                                   isSent ? 'hover:text-white' : 'hover:text-primary'
                                 }`}
                               >
@@ -314,7 +314,7 @@ const DirectMessages = ({ user }) => {
                           </div>
                         </div>
                         {isSent && !isDeleted && (user.role === 'admin' || msg.sender_id === user.id) && (
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity mt-1 text-right">
+                          <div className="lg:opacity-0 lg:group-hover:opacity-100 transition-opacity mt-1 text-right">
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" data-testid={`delete-message-${msg.id}`}>

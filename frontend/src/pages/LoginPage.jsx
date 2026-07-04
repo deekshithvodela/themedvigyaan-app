@@ -44,13 +44,65 @@ const LoginPage = ({ onLogin }) => {
         </div>
 
         <div className="space-y-4">
-          <div className="flex justify-center">
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={() => toast.error('Google login failed')}
-              useOneTap={false}
-              data-testid="google-login-button"
-            />
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => toast.error('Google login failed')}
+                useOneTap={false}
+                data-testid="google-login-button"
+              />
+            </div>
+            
+            {(process.env.NODE_ENV === 'development' || process.env.REACT_APP_ALLOW_AUTH_BYPASS === 'true') && (
+              <div className="flex flex-col gap-2 pt-4 border-t border-slate-100">
+                <p className="text-center text-xs text-slate-400 font-medium">Local Development Bypass</p>
+                <div className="flex justify-center gap-2">
+                  <Button 
+                    onClick={async () => {
+                      setLoading(true);
+                      try {
+                        const res = await axios.post(`${API}/auth/bypass`, { role: 'admin' });
+                        onLogin(res.data.token, res.data.user);
+                        toast.success('Bypass login (Admin) successful!');
+                        navigate('/');
+                      } catch (error) {
+                        toast.error('Bypass login failed');
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs"
+                    data-testid="dev-login-admin"
+                  >
+                    Login as Admin
+                  </Button>
+                  <Button 
+                    onClick={async () => {
+                      setLoading(true);
+                      try {
+                        const res = await axios.post(`${API}/auth/bypass`, { role: 'member' });
+                        onLogin(res.data.token, res.data.user);
+                        toast.success('Bypass login (Member) successful!');
+                        navigate('/');
+                      } catch (error) {
+                        toast.error('Bypass login failed');
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs"
+                    data-testid="dev-login-member"
+                  >
+                    Login as Member
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="text-center text-sm text-gray-600">

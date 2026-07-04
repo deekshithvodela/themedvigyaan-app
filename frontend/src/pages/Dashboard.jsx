@@ -14,7 +14,19 @@ import { formatDistanceToNow } from 'date-fns';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-const Dashboard = ({ user, onLogout }) => {
+const DEFAULT_PERMISSIONS = {
+  member: {
+    pages: ['feed', 'chat', 'threads', 'assignments', 'blogs', 'calendar', 'messages'],
+  },
+  core: {
+    pages: ['feed', 'chat', 'threads', 'assignments', 'blogs', 'calendar', 'tasks', 'messages'],
+  },
+  admin: {
+    pages: ['feed', 'chat', 'threads', 'assignments', 'blogs', 'calendar', 'tasks', 'messages', 'admin'],
+  }
+};
+
+const Dashboard = ({ user, rolePermissions, onLogout }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [notifications, setNotifications] = useState([]);
@@ -28,26 +40,22 @@ const Dashboard = ({ user, onLogout }) => {
 
   // Role-based navigation items
   const getNavItems = () => {
-    const items = [
-      { path: '/feed', icon: Bell, label: 'Feed', exact: false },
-      { path: '/', icon: MessageSquare, label: 'General Chat', exact: true },
-      { path: '/threads', icon: MessageSquare, label: 'Threads' },
-      { path: '/assignments', icon: FileText, label: 'Assignments' },
-      { path: '/blogs', icon: BookOpen, label: 'Blogs' },
-      { path: '/calendar', icon: Calendar, label: 'Calendar' },
+    const role = user?.role || 'member';
+    const permissions = rolePermissions?.[role] || DEFAULT_PERMISSIONS[role];
+    const allowedPages = permissions?.pages || [];
+
+    const allItems = [
+      { id: 'feed', path: '/feed', icon: Bell, label: 'Feed', exact: false },
+      { id: 'chat', path: '/', icon: MessageSquare, label: 'General Chat', exact: true },
+      { id: 'threads', path: '/threads', icon: MessageSquare, label: 'Threads' },
+      { id: 'assignments', path: '/assignments', icon: FileText, label: 'Assignments' },
+      { id: 'blogs', path: '/blogs', icon: BookOpen, label: 'Blogs' },
+      { id: 'calendar', path: '/calendar', icon: Calendar, label: 'Calendar' },
+      { id: 'tasks', path: '/tasks', icon: ListTodo, label: 'Tasks' },
+      { id: 'admin', path: '/admin', icon: Settings, label: 'Admin Panel' }
     ];
 
-    // Tasks only for admin and core (team_lead)
-    if (user?.role === 'admin' || user?.role === 'core') {
-      items.push({ path: '/tasks', icon: ListTodo, label: 'Tasks' });
-    }
-
-    // Admin panel only for admin
-    if (user?.role === 'admin') {
-      items.push({ path: '/admin', icon: Settings, label: 'Admin Panel' });
-    }
-
-    return items;
+    return allItems.filter(item => allowedPages.includes(item.id));
   };
 
   const navItems = getNavItems();
@@ -241,16 +249,28 @@ const Dashboard = ({ user, onLogout }) => {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
         <header className="bg-white border-b border-slate-200 px-4 lg:px-6 py-3 flex items-center justify-between gap-4">
-          {/* Mobile Menu Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden"
-            onClick={() => setSidebarOpen(true)}
-            data-testid="mobile-menu-button"
-          >
-            <Menu className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Mobile Menu Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+              data-testid="mobile-menu-button"
+            >
+              <Menu className="w-5 h-5" />
+            </Button>
+
+            {/* Mobile Logo/Title */}
+            <div className="flex items-center gap-2 lg:hidden">
+              <img
+                src="https://customer-assets.emergentagent.com/job_teamchat-portal/artifacts/r1igb56v_logoo.jpg"
+                alt="MedVigyaan"
+                className="w-7 h-7 rounded-lg object-cover"
+              />
+              <span className="font-bold text-sm text-slate-800">MedVigyaan</span>
+            </div>
+          </div>
 
           {/* Spacer for desktop */}
           <div className="hidden lg:block flex-1"></div>
@@ -283,21 +303,23 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
 
             {/* Direct Messages Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                navigate('/messages');
-                setUnreadDMCount(0);
-              }}
-              data-testid="dm-button"
-              className="relative"
-            >
-              <Mail className="w-5 h-5" />
-              {unreadDMCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 rounded-full w-3 h-3 animate-pulse" />
-              )}
-            </Button>
+            {((rolePermissions?.[user?.role || 'member'] || DEFAULT_PERMISSIONS[user?.role || 'member'])?.pages?.includes('messages')) && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  navigate('/messages');
+                  setUnreadDMCount(0);
+                }}
+                data-testid="dm-button"
+                className="relative"
+              >
+                <Mail className="w-5 h-5" />
+                {unreadDMCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 rounded-full w-3 h-3 animate-pulse" />
+                )}
+              </Button>
+            )}
             
             {/* Notification Bell */}
             <Popover open={showNotifications} onOpenChange={setShowNotifications}>

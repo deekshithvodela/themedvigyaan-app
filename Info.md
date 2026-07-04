@@ -11,6 +11,7 @@ The MedVigyaan is a Progressive Web App (PWA) for medical education and collabor
 - First admin: `deekshithvodela@gmail.com`
 
 ### User Roles & Permissions
+User roles and permissions are dynamically loaded from the database configuration. The system falls back to the following default permissions matrix:
 
 | Feature | Member | Core | Admin |
 |---------|--------|------|-------|
@@ -77,6 +78,13 @@ The MedVigyaan is a Progressive Web App (PWA) for medical education and collabor
 - **Real-time**: Socket.IO
 
 ## What's Been Implemented
+
+### July 2026 - Latest Security & Permission Fixes
+- [x] Implemented dynamic role permissions stored in MongoDB and fetched at login/session refresh.
+- [x] Replaced hardcoded frontend route/navigation checks with dynamic permissions matrix enforcement.
+- [x] Fixed MongoDB user registration serialization crash (`_id` ObjectId serialization exception).
+- [x] Fixed identical Socket.IO event serialization exceptions in Thread, Reply, Direct Message, and Task creation endpoints.
+- [x] Secured the backend bypass login endpoint to restrict bypass access outside of local mock testing environments.
 
 ### December 2025 - Latest Updates
 - [x] Renamed "Team Lead" role to "Core"

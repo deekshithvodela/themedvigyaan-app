@@ -26,10 +26,66 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 const GOOGLE_CLIENT_ID = '946733501616-m6a2vmmg9l1ejs185d6a0hqr8ds0bi1m.apps.googleusercontent.com';
 
+// Default role permissions
+const DEFAULT_PERMISSIONS = {
+  member: {
+    pages: ['feed', 'chat', 'threads', 'assignments', 'blogs', 'calendar', 'messages'],
+    actions: {
+      feed: ['view'],
+      chat: ['view', 'create', 'delete_own'],
+      threads: ['view', 'create', 'delete_own'],
+      assignments: ['view', 'submit'],
+      blogs: ['view'],
+      calendar: ['view'],
+      tasks: [],
+      messages: ['view', 'create', 'delete_own']
+    }
+  },
+  core: {
+    pages: ['feed', 'chat', 'threads', 'assignments', 'blogs', 'calendar', 'tasks', 'messages'],
+    actions: {
+      feed: ['view', 'create', 'delete_own'],
+      chat: ['view', 'create', 'delete_own'],
+      threads: ['view', 'create', 'delete_own'],
+      assignments: ['view', 'create', 'submit'],
+      blogs: ['view', 'create', 'delete_own'],
+      calendar: ['view', 'create', 'delete_own'],
+      tasks: ['view', 'create', 'edit', 'delete_own'],
+      messages: ['view', 'create', 'delete_own']
+    }
+  },
+  admin: {
+    pages: ['feed', 'chat', 'threads', 'assignments', 'blogs', 'calendar', 'tasks', 'messages', 'admin'],
+    actions: {
+      feed: ['view', 'create', 'delete_any'],
+      chat: ['view', 'create', 'delete_any'],
+      threads: ['view', 'create', 'delete_any'],
+      assignments: ['view', 'create', 'submit', 'delete_any'],
+      blogs: ['view', 'create', 'edit', 'delete_any'],
+      calendar: ['view', 'create', 'edit', 'delete_any'],
+      tasks: ['view', 'create', 'edit', 'delete_any'],
+      messages: ['view', 'create', 'delete_any'],
+      admin: ['full_access']
+    }
+  }
+};
+
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState(null);
+  const [rolePermissions, setRolePermissions] = useState(DEFAULT_PERMISSIONS);
+
+  const fetchRolePermissions = async () => {
+    try {
+      const res = await axios.get(`${API}/admin/role-permissions`);
+      if (res.data && Object.keys(res.data).length > 0) {
+        setRolePermissions(res.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch role permissions, using defaults');
+    }
+  };
 
   useEffect(() => {
     // Register service worker
@@ -43,6 +99,7 @@ function App() {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       fetchUser();
+      fetchRolePermissions();
     } else {
       setLoading(false);
     }
@@ -136,6 +193,7 @@ function App() {
     localStorage.setItem('token', token);
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setUser(userData);
+    fetchRolePermissions();
   };
 
   const handleLogout = () => {
@@ -144,6 +202,13 @@ function App() {
     setUser(null);
     if (socket) socket.close();
     toast.success('Logged out successfully');
+  };
+
+  const hasPageAccess = (pageId) => {
+    if (!user) return false;
+    const role = user.role || 'member';
+    const permissions = rolePermissions?.[role] || DEFAULT_PERMISSIONS[role];
+    return permissions?.pages?.includes(pageId) || false;
   };
 
   if (loading) {
@@ -178,28 +243,32 @@ function App() {
             />
             <Route
               path="/"
-              element={user ? <Dashboard user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
+              element={user ? <Dashboard user={user} rolePermissions={rolePermissions} onLogout={handleLogout} /> : <Navigate to="/login" />}
             >
-              <Route path="feed" element={<Feed user={user} />} />
-              <Route index element={<GroupChat user={user} />} />
-              <Route path="threads" element={<Threads user={user} />} />
-              <Route path="messages" element={<DirectMessages user={user} />} />
-              <Route path="assignments" element={<Assignments user={user} />} />
-              <Route path="blogs" element={<Blogs user={user} />} />
-              {/* Tasks only for admin and core */}
+              <Route path="feed" element={hasPageAccess('feed') ? <Feed user={user} /> : <Navigate to="/" />} />
+              <Route index element={hasPageAccess('chat') ? <GroupChat user={user} /> : <Navigate to="/feed" />} />
+              <Route path="threads" element={hasPageAccess('threads') ? <Threads user={user} /> : <Navigate to="/" />} />
+              <Route path="messages" element={hasPageAccess('messages') ? <DirectMessages user={user} /> : <Navigate to="/" />} />
+              <Route path="assignments" element={hasPageAccess('assignments') ? <Assignments user={user} /> : <Navigate to="/" />} />
+              <Route path="blogs" element={hasPageAccess('blogs') ? <Blogs user={user} /> : <Navigate to="/" />} />
               <Route 
                 path="tasks" 
                 element={
-                  user?.role === 'admin' || user?.role === 'core' 
+                  hasPageAccess('tasks') 
                     ? <Tasks user={user} /> 
                     : <Navigate to="/" />
                 } 
               />
-              <Route path="calendar" element={<Calendar user={user} />} />
+              <Route path="calendar" element={hasPageAccess('calendar') ? <Calendar user={user} /> : <Navigate to="/" />} />
               <Route path="profile" element={<EditProfile />} />
-              {user?.role === 'admin' && (
-                <Route path="admin" element={<AdminPanel user={user} />} />
-              )}
+              <Route 
+                path="admin" 
+                element={
+                  hasPageAccess('admin') 
+                    ? <AdminPanel user={user} /> 
+                    : <Navigate to="/" />
+                } 
+              />
             </Route>
           </Routes>
           <Toaster position="top-right" richColors />

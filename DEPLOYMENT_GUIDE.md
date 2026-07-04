@@ -46,6 +46,7 @@ Deploy MedVigyaan for free using:
    JWT_SECRET=your_secure_random_string
    JWT_ALGORITHM=HS256
    FIRST_ADMIN_EMAIL=your_admin@gmail.com
+   ALLOW_AUTH_BYPASS=false
    ```
 
 5. Deploy and note your backend URL (e.g., `https://medvigyaan-api.onrender.com`)
@@ -69,9 +70,10 @@ Deploy MedVigyaan for free using:
    - **Build Command**: `npm run build` or `yarn build`
    - **Output Directory**: `build`
 
-4. Add Environment Variable:
+4. Add Environment Variables:
    ```
    REACT_APP_BACKEND_URL=https://your-backend.onrender.com
+   REACT_APP_ALLOW_AUTH_BYPASS=false
    ```
 
 5. Deploy!
