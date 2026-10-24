@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -34,16 +32,17 @@
     @apply border-border;
   }
   html, body, #root {
-    height: 100%;
+    min-height: 100%;
     margin: 0;
     padding: 0;
-    overflow: hidden;
   }
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', sans-serif;
-    height: 100%;
-    overflow: hidden;
+    min-height: 100vh;
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Space Grotesk', sans-serif;
@@ -51,22 +50,27 @@
 }
 
 /* Custom scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(46, 125, 150, 0.4) transparent;
+}
+
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2e7d96;
-  border-radius: 5px;
+  background: rgba(46, 125, 150, 0.35);
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #236175;
+  background: rgba(35, 97, 117, 0.7);
 }
 
 /* Mobile optimizations */
@@ -87,23 +91,26 @@
   .message-bubble {
     max-width: 85%;
   }
-}
 
-/* Ensure touch targets are large enough on mobile */
-@media (max-width: 768px) {
-  button {
-    min-height: 44px;
-  }
-  
-  input,
+  /* Prevent iOS zoom on inputs while keeping compact sizing */
+  input:not([type="checkbox"]):not([type="radio"]),
   textarea,
   select {
-    min-height: 44px;
-    font-size: 16px; /* Prevents zoom on iOS */
+    font-size: 16px; /* Prevents auto-zoom on iOS */
   }
 }
 
-/* Enable smooth touch scrolling for all scroll containers on iOS */
+/* Enable smooth touch scrolling and isolate overscroll for all scroll containers */
 .overflow-y-auto, .overflow-auto {
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* Hide scrollbar for clean horizontal tabs on mobile */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

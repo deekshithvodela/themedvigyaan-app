@@ -6,7 +6,7 @@ import { Bell, Plus, Trash2, Image as ImageIcon, Link as LinkIcon } from 'lucide
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
@@ -73,8 +73,12 @@ const Feed = ({ user }) => {
       if (newAnnouncement.link) formData.append('link', newAnnouncement.link);
       if (newAnnouncement.image) formData.append('image', newAnnouncement.image);
 
+      const token = localStorage.getItem('token');
       const res = await axios.post(`${API}/announcements`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
       });
       
       setAnnouncements(prev => [res.data, ...prev]);
@@ -83,7 +87,7 @@ const Feed = ({ user }) => {
       setShowDialog(false);
       toast.success('Announcement posted!');
     } catch (error) {
-      toast.error('Failed to create announcement');
+      toast.error(error.response?.data?.detail || 'Failed to create announcement');
     } finally {
       setLoading(false);
     }
@@ -101,15 +105,15 @@ const Feed = ({ user }) => {
 
   return (
     <div className="space-y-6" data-testid="feed-page">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Feed</h2>
+          <h1 className="text-2xl font-bold text-gray-800">Feed</h1>
           <p className="text-gray-600 text-sm mt-1">Latest announcements and updates</p>
         </div>
         {(user.role === 'admin' || user.role === 'core') && (
           <Dialog open={showDialog} onOpenChange={setShowDialog}>
             <DialogTrigger asChild>
-              <Button data-testid="new-announcement-button">
+              <Button data-testid="new-announcement-button" className="w-full sm:w-auto h-9 text-sm">
                 <Plus className="w-4 h-4 mr-2" />
                 New Announcement
               </Button>
@@ -117,6 +121,9 @@ const Feed = ({ user }) => {
             <DialogContent className="max-w-2xl" data-testid="new-announcement-dialog">
               <DialogHeader>
                 <DialogTitle>Create Announcement</DialogTitle>
+                <DialogDescription className="text-sm text-gray-500">
+                  Broadcast notices, reminders, and departmental updates.
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={createAnnouncement} className="space-y-4">
                 <div>
@@ -192,6 +199,9 @@ const Feed = ({ user }) => {
               <img
                 src={announcement.image_url}
                 alt={announcement.title}
+                loading="lazy"
+                width={800}
+                height={256}
                 className="w-full h-64 object-cover"
               />
             )}
@@ -206,7 +216,7 @@ const Feed = ({ user }) => {
                 {(user.role === 'admin' || user.role === 'core') && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="sm" data-testid={`delete-announcement-${announcement.id}`}>
+                      <Button variant="ghost" size="sm" aria-label="Delete announcement" data-testid={`delete-announcement-${announcement.id}`}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </AlertDialogTrigger>

@@ -6,7 +6,7 @@ import { BookOpen, Plus, User, Clock, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -29,6 +29,7 @@ const Blogs = ({ user }) => {
   const { searchQuery = '' } = useOutletContext() || {};
   const [blogs, setBlogs] = useState([]);
   const [selectedBlog, setSelectedBlog] = useState(null);
+  const [selectedTag, setSelectedTag] = useState(null);
   const [newBlog, setNewBlog] = useState({ title: '', content: '', tags: '' });
   const [showDialog, setShowDialog] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -55,7 +56,7 @@ const Blogs = ({ user }) => {
     try {
       const blogData = {
         ...newBlog,
-        tags: newBlog.tags.split(',').map(t => t.trim()).filter(Boolean)
+        tags: newBlog.tags.split(',').map(t => t.trim().replace(/^#+/, '')).filter(Boolean)
       };
       const res = await axios.post(`${API}/blogs`, blogData);
       setBlogs(prev => [res.data, ...prev]);
@@ -117,7 +118,7 @@ const Blogs = ({ user }) => {
           <h1 className="text-4xl font-bold text-gray-800 mb-4">{selectedBlog.title}</h1>
           
           <div className="flex items-center gap-4 text-sm text-gray-600 mb-6 pb-6 border-b border-slate-200">
-            <span className="flex items-center gap-1">
+            <span className={`flex items-center gap-1 ${selectedBlog.author_name === '[Deleted User]' ? 'italic text-gray-400' : ''}`}>
               <User className="w-4 h-4" /> {selectedBlog.author_name}
             </span>
             <span className="flex items-center gap-1">
@@ -125,10 +126,25 @@ const Blogs = ({ user }) => {
               {formatDistanceToNow(new Date(selectedBlog.created_at), { addSuffix: true })}
             </span>
             {selectedBlog.tags?.length > 0 && (
-              <div className="flex gap-2">
-                {selectedBlog.tags.map((tag, idx) => (
-                  <Badge key={idx} variant="secondary">{tag}</Badge>
-                ))}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-gray-500">Tags:</span>
+                {selectedBlog.tags.map((rawTag, idx) => {
+                  const tag = rawTag.replace(/^#+/, '');
+                  return (
+                    <Badge 
+                      key={idx} 
+                      variant="secondary"
+                      className="cursor-pointer hover:bg-primary hover:text-white transition-all text-xs"
+                      onClick={() => {
+                        setSelectedTag(tag);
+                        setSelectedBlog(null);
+                      }}
+                      title={`View all articles tagged ${tag}`}
+                    >
+                      {tag}
+                    </Badge>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -145,7 +161,7 @@ const Blogs = ({ user }) => {
 
   return (
     <div className="space-y-6" data-testid="blogs-page">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Blogs & Articles</h2>
           <p className="text-gray-600 text-sm mt-1">Share insights and learn from the community</p>
@@ -153,7 +169,7 @@ const Blogs = ({ user }) => {
         {canCreateBlog && (
           <Dialog open={showDialog} onOpenChange={setShowDialog}>
             <DialogTrigger asChild>
-              <Button data-testid="new-blog-button">
+              <Button data-testid="new-blog-button" className="w-full sm:w-auto h-9 text-sm">
                 <Plus className="w-4 h-4 mr-2" />
                 Write Blog
               </Button>
@@ -161,6 +177,9 @@ const Blogs = ({ user }) => {
           <DialogContent className="max-w-2xl" data-testid="new-blog-dialog">
             <DialogHeader>
               <DialogTitle>Write New Blog</DialogTitle>
+              <DialogDescription className="text-sm text-gray-500">
+                Share medical research, case studies, and insights with the community.
+              </DialogDescription>
             </DialogHeader>
             <form onSubmit={createBlog} className="space-y-4">
               <div>
@@ -205,14 +224,33 @@ const Blogs = ({ user }) => {
         )}
       </div>
 
+      {/* Active tag filter pill */}
+      {selectedTag && (
+        <div className="flex items-center justify-between bg-primary/10 border border-primary/20 text-primary px-4 py-2.5 rounded-lg text-sm" data-testid="active-tag-filter">
+          <div className="flex items-center gap-2">
+            <span className="font-medium">Filtered by tag:</span>
+            <Badge variant="default" className="text-xs font-semibold">{selectedTag.replace(/^#+/, '')}</Badge>
+          </div>
+          <button
+            onClick={() => setSelectedTag(null)}
+            className="px-2.5 py-1 bg-white hover:bg-red-50 text-gray-700 hover:text-red-600 rounded border border-gray-200 text-xs font-semibold shadow-xs transition-colors"
+            data-testid="clear-tag-filter-button"
+          >
+            ✕ Clear Filter
+          </button>
+        </div>
+      )}
+
       <div className="grid gap-6">
         {blogs
-          .filter(blog =>
-            searchQuery === '' ||
-            blog.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            blog.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            blog.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-          )
+          .filter(blog => {
+            const matchesSearch = searchQuery === '' ||
+              blog.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              blog.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              blog.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+            const matchesTag = !selectedTag || (blog.tags && blog.tags.includes(selectedTag));
+            return matchesSearch && matchesTag;
+          })
           .map((blog) => (
           <article
             key={blog.id}
@@ -226,29 +264,66 @@ const Blogs = ({ user }) => {
             <p className="text-gray-600 mb-4 line-clamp-3">
               {blog.content.substring(0, 200)}...
             </p>
-            <div className="flex items-center gap-4 text-sm text-gray-500">
-              <span className="flex items-center gap-1">
-                <User className="w-4 h-4" /> {blog.author_name}
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock className="w-4 h-4" />
-                {formatDistanceToNow(new Date(blog.created_at), { addSuffix: true })}
-              </span>
+            <div className="flex items-center justify-between flex-wrap gap-4 text-sm text-gray-500">
+              <div className="flex items-center gap-4">
+                <span className={`flex items-center gap-1 ${blog.author_name === '[Deleted User]' ? 'italic text-gray-400' : ''}`}>
+                  <User className="w-4 h-4" /> {blog.author_name}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock className="w-4 h-4" />
+                  {formatDistanceToNow(new Date(blog.created_at), { addSuffix: true })}
+                </span>
+              </div>
               {blog.tags?.length > 0 && (
-                <div className="flex gap-2">
-                  {blog.tags.slice(0, 3).map((tag, idx) => (
-                    <Badge key={idx} variant="secondary" className="text-xs">{tag}</Badge>
-                  ))}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {blog.tags.map((rawTag, idx) => {
+                    const tag = rawTag.replace(/^#+/, '');
+                    return (
+                      <Badge 
+                        key={idx} 
+                        variant={selectedTag === tag ? "default" : "secondary"} 
+                        className={`text-xs cursor-pointer transition-colors ${
+                          selectedTag === tag
+                            ? 'bg-primary text-white hover:bg-primary/90'
+                            : 'hover:bg-primary hover:text-white'
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedTag(prev => prev === tag ? null : tag);
+                        }}
+                        title={`Filter articles by ${tag}`}
+                        data-testid={`blog-tag-${tag}`}
+                      >
+                        {tag}
+                      </Badge>
+                    );
+                  })}
                 </div>
               )}
             </div>
           </article>
         ))}
 
-        {blogs.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
+        {blogs.filter(blog => {
+          const matchesSearch = searchQuery === '' ||
+            blog.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            blog.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            blog.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+          const matchesTag = !selectedTag || (blog.tags && blog.tags.includes(selectedTag));
+          return matchesSearch && matchesTag;
+        }).length === 0 && (
+          <div className="text-center py-12 text-gray-500 bg-white rounded-lg border border-dashed border-slate-200">
             <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>No blogs yet. Be the first to write!</p>
+            <p className="text-base font-medium">
+              {selectedTag 
+                ? `No blogs found with tag "#${selectedTag}".` 
+                : 'No blogs yet. Be the first to write!'}
+            </p>
+            {selectedTag && (
+              <Button variant="outline" size="sm" className="mt-3" onClick={() => setSelectedTag(null)}>
+                Clear tag filter
+              </Button>
+            )}
           </div>
         )}
       </div>

@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -122,13 +122,13 @@ const Calendar = ({ user }) => {
     <div className="space-y-6" data-testid="calendar-page">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Calendar</h2>
+          <h1 className="text-2xl font-bold text-gray-800">Calendar</h1>
           <p className="text-gray-600 text-sm mt-1">View upcoming events and schedules</p>
         </div>
         {isAdminOrCore && (
           <Dialog open={showDialog} onOpenChange={setShowDialog}>
             <DialogTrigger asChild>
-              <Button data-testid="add-event-button">
+              <Button data-testid="add-event-button" className="w-full sm:w-auto h-9 text-sm">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Event
               </Button>
@@ -136,6 +136,9 @@ const Calendar = ({ user }) => {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create Calendar Event</DialogTitle>
+                <DialogDescription className="text-sm text-gray-500">
+                  Schedule a meeting, presentation, or academic event.
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={createEvent} className="space-y-4">
                 <div>
@@ -234,7 +237,7 @@ const Calendar = ({ user }) => {
                           {isAdminOrCore && event.source === 'native' && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="sm" data-testid={`delete-event-${event.id}`}>
+                                <Button variant="ghost" size="sm" aria-label="Delete event" data-testid={`delete-event-${event.id}`}>
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
                               </AlertDialogTrigger>

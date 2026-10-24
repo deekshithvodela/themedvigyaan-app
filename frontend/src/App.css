@@ -3,46 +3,6 @@
   background: linear-gradient(135deg, #f5f7fa 0%, #e8eef3 100%);
 }
 
-.logo-container {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.logo {
-  width: 40px;
-  height: 40px;
-  object-fit: cover;
-  border-radius: 8px;
-  border: 2px solid #2e7d96;
-}
-
-.nav-link {
-  position: relative;
-  padding: 0.5rem 1rem;
-  color: #4a5568;
-  font-weight: 500;
-  transition: color 0.2s;
-}
-
-.nav-link:hover {
-  color: #2e7d96;
-}
-
-.nav-link.active {
-  color: #2e7d96;
-}
-
-.nav-link.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: #2e7d96;
-  border-radius: 3px 3px 0 0;
-}
 
 .thread-card {
   background: white;
@@ -81,83 +41,20 @@
 .auth-card {
   background: white;
   border-radius: 16px;
-  padding: 2.5rem;
+  padding: 1.5rem;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-  max-width: 480px;
+  max-width: 440px;
   width: 100%;
-  margin: 1rem;
+  margin: 0 auto;
 }
 
-.form-field {
-  margin-bottom: 1.25rem;
+@media (min-width: 640px) {
+  .auth-card {
+    padding: 2.5rem;
+    max-width: 460px;
+  }
 }
 
-.form-field label {
-  display: block;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #2d3748;
-  margin-bottom: 0.5rem;
-}
-
-.form-field input,
-.form-field textarea {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #cbd5e0;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  transition: all 0.2s;
-}
-
-.form-field input:focus,
-.form-field textarea:focus {
-  outline: none;
-  border-color: #2e7d96;
-  box-shadow: 0 0 0 3px rgba(46, 125, 150, 0.1);
-}
-
-.btn-primary {
-  width: 100%;
-  padding: 0.875rem;
-  background: #2e7d96;
-  color: white;
-  font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-primary:hover {
-  background: #236175;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(46, 125, 150, 0.3);
-}
-
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.message-bubble {
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
-  max-width: 80%;
-  word-wrap: break-word;
-}
-
-.message-bubble.sent {
-  background: #2e7d96;
-  color: white;
-  margin-left: auto;
-}
-
-.message-bubble.received {
-  background: #e2e8f0;
-  color: #2d3748;
-}
 
 .task-table {
   width: 100%;
@@ -194,10 +91,6 @@
 
 /* Mobile table wrapper */
 @media (max-width: 768px) {
-  .table-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
   
   .task-table th,
   .task-table td {

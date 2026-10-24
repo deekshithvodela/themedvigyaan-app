@@ -8,7 +8,7 @@ The MedVigyaan is a Progressive Web App (PWA) for medical education and collabor
 ### Authentication
 - Google Sign-in only
 - Registration restricted to pre-approved whitelisted Gmail addresses managed by admin
-- First admin: `deekshithvodela@gmail.com`
+- First admin: Configurable via `FIRST_ADMIN_EMAIL` (automatically assigned Admin role upon first Google sign-in)
 
 ### User Roles & Permissions
 User roles and permissions are dynamically loaded from the database configuration. The system falls back to the following default permissions matrix:
@@ -124,6 +124,16 @@ User roles and permissions are dynamically loaded from the database configuratio
 - [ ] Push notifications implementation
 - [ ] Offline mode enhancement
 - [ ] Backend refactoring (split server.py into routers)
+
+## Future Prospect: Front-Facing Faculty & Member Profiles Directory
+> **Status:** Future Prospect (Do not implement until explicitly specified).
+- **Inspiration:** Harvard Catalyst Profiles ([connects.catalyst.harvard.edu/profiles/search/people](https://connects.catalyst.harvard.edu/profiles/search/people))
+- **Concept:** A public, searchable directory of medical faculty, core team members, and researchers.
+- **Key Capabilities Planned:**
+  - **Faceted Search & Discovery:** Filter by department, medical specialty, institutional affiliation, clinical focus, and research keywords.
+  - **Comprehensive Member Profiles:** Biographical summary, clinical appointments, academic degrees, research interests, publications (PubMed/ORCID sync), and ongoing clinical trials.
+  - **Collaboration & Mentorship Network:** Visual co-authorship graphs, related researchers suggestions, and collaboration inquiry dispatching.
+  - **SEO & Public Accessibility:** Server-side rendered profile pages indexed by search engines with MedicalEntity JSON-LD structured metadata.
 
 ## Environment Configuration
 - Backend: `/app/backend/.env`

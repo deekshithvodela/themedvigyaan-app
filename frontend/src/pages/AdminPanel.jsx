@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
@@ -17,78 +17,18 @@ import { format } from 'date-fns';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-// Default role permissions
-const DEFAULT_PERMISSIONS = {
-  member: {
-    pages: ['feed', 'chat', 'threads', 'assignments', 'blogs', 'calendar', 'messages'],
-    actions: {
-      feed: ['view'],
-      chat: ['view', 'create', 'delete_own'],
-      threads: ['view', 'create', 'delete_own'],
-      assignments: ['view', 'submit'],
-      blogs: ['view'],
-      calendar: ['view'],
-      tasks: [],
-      messages: ['view', 'create', 'delete_own']
-    }
-  },
-  core: {
-    pages: ['feed', 'chat', 'threads', 'assignments', 'blogs', 'calendar', 'tasks', 'messages'],
-    actions: {
-      feed: ['view', 'create', 'delete_own'],
-      chat: ['view', 'create', 'delete_own'],
-      threads: ['view', 'create', 'delete_own'],
-      assignments: ['view', 'create', 'submit'],
-      blogs: ['view', 'create', 'delete_own'],
-      calendar: ['view', 'create', 'delete_own'],
-      tasks: ['view', 'create', 'edit', 'delete_own'],
-      messages: ['view', 'create', 'delete_own']
-    }
-  },
-  admin: {
-    pages: ['feed', 'chat', 'threads', 'assignments', 'blogs', 'calendar', 'tasks', 'messages', 'admin'],
-    actions: {
-      feed: ['view', 'create', 'delete_any'],
-      chat: ['view', 'create', 'delete_any'],
-      threads: ['view', 'create', 'delete_any'],
-      assignments: ['view', 'create', 'submit', 'delete_any'],
-      blogs: ['view', 'create', 'edit', 'delete_any'],
-      calendar: ['view', 'create', 'edit', 'delete_any'],
-      tasks: ['view', 'create', 'edit', 'delete_any'],
-      messages: ['view', 'create', 'delete_any'],
-      admin: ['full_access']
-    }
-  }
-};
-
-const ALL_PAGES = [
-  { id: 'feed', label: 'Feed' },
-  { id: 'chat', label: 'General Chat' },
-  { id: 'threads', label: 'Threads' },
-  { id: 'assignments', label: 'Assignments' },
-  { id: 'blogs', label: 'Blogs' },
-  { id: 'calendar', label: 'Calendar' },
-  { id: 'tasks', label: 'Tasks' },
-  { id: 'messages', label: 'Direct Messages' },
-  { id: 'admin', label: 'Admin Panel' }
-];
-
-const ALL_ACTIONS = [
-  { id: 'view', label: 'View' },
-  { id: 'create', label: 'Create' },
-  { id: 'edit', label: 'Edit' },
-  { id: 'submit', label: 'Submit (Assignments)' },
-  { id: 'delete_own', label: 'Delete Own' },
-  { id: 'delete_any', label: 'Delete Any' }
-];
+import { DEFAULT_PERMISSIONS, ALL_PAGES, ALL_ACTIONS } from '@/constants/permissions';
+import { useSocket } from '@/context/SocketContext';
 
 const AdminPanel = ({ user }) => {
+  const socket = useSocket();
   const [users, setUsers] = useState([]);
   const [blogs, setBlogs] = useState([]);
   const [calendarConfig, setCalendarConfig] = useState(null);
   const [whitelistedEmails, setWhitelistedEmails] = useState([]);
   const [newEmail, setNewEmail] = useState('');
   const [editingBlog, setEditingBlog] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [integrations, setIntegrations] = useState({});
   const [linkConfig, setLinkConfig] = useState({ url: '', label: 'External Link' });
@@ -104,6 +44,17 @@ const AdminPanel = ({ user }) => {
     fetchLinkConfig();
     fetchRolePermissions();
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleProfileUpdate = (data) => {
+      if (data?.user) {
+        setUsers(prev => prev.map(u => u.id === data.user_id ? { ...u, ...data.user } : u));
+      }
+    };
+    socket.on('user_profile_updated', handleProfileUpdate);
+    return () => socket.off('user_profile_updated', handleProfileUpdate);
+  }, [socket]);
 
   const fetchUsers = async () => {
     try {
@@ -191,7 +142,7 @@ const AdminPanel = ({ user }) => {
 
   const removeWhitelistedEmail = async (email) => {
     try {
-      await axios.delete(`${API}/admin/whitelist/${email}`);
+      await axios.delete(`${API}/admin/whitelist/${encodeURIComponent(email)}`);
       await fetchWhitelistedEmails();
       toast.success('Email removed from whitelist');
     } catch (error) {
@@ -205,7 +156,26 @@ const AdminPanel = ({ user }) => {
       await fetchUsers();
       toast.success('Role updated!');
     } catch (error) {
-      toast.error('Failed to update role');
+      toast.error(error.response?.data?.detail || 'Failed to update role');
+    }
+  };
+
+  const handleAdminUpdateUser = async (e) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    try {
+      const res = await axios.put(`${API}/users/${editingUser.id}/profile`, {
+        name: editingUser.name,
+        department: editingUser.department,
+        phone: editingUser.phone,
+        bio: editingUser.bio,
+        role: editingUser.role
+      });
+      setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, ...res.data.user } : u));
+      toast.success('User profile updated successfully!');
+      setEditingUser(null);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to update user profile');
     }
   };
 
@@ -351,63 +321,145 @@ const AdminPanel = ({ user }) => {
   return (
     <div className="space-y-6" data-testid="admin-panel-page">
       <div>
-        <h2 className="text-2xl font-bold text-gray-800">Admin Panel</h2>
+        <h1 className="text-2xl font-bold text-gray-800">Admin Panel</h1>
         <p className="text-gray-600 text-sm mt-1">Manage users, roles, blogs, calendar, and integrations</p>
       </div>
 
       <Tabs defaultValue="users" className="w-full">
-        <TabsList className="flex flex-wrap h-auto gap-1 bg-slate-100 p-1">
-          <TabsTrigger value="users" className="flex-1 min-w-[70px] text-xs sm:text-sm" data-testid="users-tab">
-            <Users className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">Users</span>
+        <TabsList className="flex overflow-x-auto no-scrollbar justify-start sm:justify-center h-auto gap-1 bg-slate-100 p-1.5 rounded-lg border border-slate-200">
+          <TabsTrigger value="users" className="flex-shrink-0 px-3 py-2 text-xs sm:text-sm whitespace-nowrap min-h-[40px]" data-testid="users-tab">
+            <Users className="w-4 h-4 mr-1.5" />
+            <span>Users</span>
           </TabsTrigger>
-          <TabsTrigger value="roles" className="flex-1 min-w-[70px] text-xs sm:text-sm" data-testid="roles-tab">
-            <Shield className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">Roles</span>
+          <TabsTrigger value="roles" className="flex-shrink-0 px-3 py-2 text-xs sm:text-sm whitespace-nowrap min-h-[40px]" data-testid="roles-tab">
+            <Shield className="w-4 h-4 mr-1.5" />
+            <span>Roles</span>
           </TabsTrigger>
-          <TabsTrigger value="whitelist" className="flex-1 min-w-[70px] text-xs sm:text-sm" data-testid="whitelist-tab">
-            <Mail className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">Whitelist</span>
+          <TabsTrigger value="whitelist" className="flex-shrink-0 px-3 py-2 text-xs sm:text-sm whitespace-nowrap min-h-[40px]" data-testid="whitelist-tab">
+            <Mail className="w-4 h-4 mr-1.5" />
+            <span>Whitelist</span>
           </TabsTrigger>
-          <TabsTrigger value="blogs" className="flex-1 min-w-[70px] text-xs sm:text-sm" data-testid="blogs-tab">
-            <BookOpen className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">Blogs</span>
+          <TabsTrigger value="blogs" className="flex-shrink-0 px-3 py-2 text-xs sm:text-sm whitespace-nowrap min-h-[40px]" data-testid="blogs-tab">
+            <BookOpen className="w-4 h-4 mr-1.5" />
+            <span>Blogs</span>
           </TabsTrigger>
-          <TabsTrigger value="calendar" className="flex-1 min-w-[70px] text-xs sm:text-sm" data-testid="calendar-tab">
-            <Calendar className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">Calendar</span>
+          <TabsTrigger value="calendar" className="flex-shrink-0 px-3 py-2 text-xs sm:text-sm whitespace-nowrap min-h-[40px]" data-testid="calendar-tab">
+            <Calendar className="w-4 h-4 mr-1.5" />
+            <span>Calendar</span>
           </TabsTrigger>
-          <TabsTrigger value="integrations" className="flex-1 min-w-[70px] text-xs sm:text-sm" data-testid="integrations-tab">
-            <Key className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">APIs</span>
+          <TabsTrigger value="integrations" className="flex-shrink-0 px-3 py-2 text-xs sm:text-sm whitespace-nowrap min-h-[40px]" data-testid="integrations-tab">
+            <Key className="w-4 h-4 mr-1.5" />
+            <span>APIs</span>
           </TabsTrigger>
-          <TabsTrigger value="links" className="flex-1 min-w-[70px] text-xs sm:text-sm" data-testid="links-tab">
-            <ExternalLink className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">Links</span>
+          <TabsTrigger value="links" className="flex-shrink-0 px-3 py-2 text-xs sm:text-sm whitespace-nowrap min-h-[40px]" data-testid="links-tab">
+            <ExternalLink className="w-4 h-4 mr-1.5" />
+            <span>Links</span>
           </TabsTrigger>
         </TabsList>
 
         {/* Users Tab */}
         <TabsContent value="users" className="space-y-4">
           <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="task-table">
                 <thead>
                   <tr>
                     <th>Name</th>
                     <th>Email</th>
                     <th>Role</th>
-                    <th>Department</th>
+                    <th>Department / User Tag</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((u) => (
                     <tr key={u.id} data-testid={`user-row-${u.id}`}>
                       <td className="font-medium">{u.name}</td>
-                      <td className="text-sm">{u.email}</td>
+                      <td className="text-sm text-gray-600">{u.email}</td>
                       <td>
+                        {u.is_main_admin ? (
+                          <div
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-md text-amber-800 text-xs font-semibold"
+                            data-testid={`role-locked-${u.id}`}
+                            title="Primary Administrator (Configured via FIRST_ADMIN_EMAIL)"
+                          >
+                            <Shield className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Admin (Primary)</span>
+                          </div>
+                        ) : (
+                          <Select value={u.role} onValueChange={(value) => updateUserRole(u.id, value)}>
+                            <SelectTrigger className="w-28" data-testid={`role-select-${u.id}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="member">Member</SelectItem>
+                              <SelectItem value="core">Core</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </td>
+                      <td>
+                        {u.department ? (
+                          <Badge variant="outline" className="text-xs font-semibold text-slate-700 border-slate-300 bg-slate-50">
+                            {u.department}
+                          </Badge>
+                        ) : (
+                          <span className="text-gray-400 text-xs italic">No tag</span>
+                        )}
+                      </td>
+                      <td>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingUser({ ...u })}
+                          className="h-8 text-xs flex items-center gap-1"
+                          data-testid={`edit-user-${u.id}`}
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                          <span>Edit</span>
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card Layout */}
+            <div className="md:hidden divide-y divide-slate-100 p-2">
+              {users.map((u) => (
+                <div key={u.id} className="p-3 space-y-2.5 bg-white rounded-lg border border-slate-100 my-1.5 shadow-2xs" data-testid={`mobile-user-card-${u.id}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm text-gray-900 truncate">{u.name}</p>
+                      <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditingUser({ ...u })}
+                      className="h-7 text-xs px-2.5 flex items-center gap-1 shrink-0"
+                      data-testid={`mobile-edit-user-${u.id}`}
+                    >
+                      <Edit className="w-3 h-3" />
+                      <span>Edit</span>
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-50">
+                    <div>
+                      {u.is_main_admin ? (
+                        <div
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-md text-amber-800 text-[11px] font-semibold"
+                          data-testid={`mobile-role-locked-${u.id}`}
+                        >
+                          <Shield className="w-3 h-3 text-amber-600" />
+                          <span>Admin (Primary)</span>
+                        </div>
+                      ) : (
                         <Select value={u.role} onValueChange={(value) => updateUserRole(u.id, value)}>
-                          <SelectTrigger className="w-28" data-testid={`role-select-${u.id}`}>
+                          <SelectTrigger className="w-28 h-7 text-xs" data-testid={`mobile-role-select-${u.id}`}>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -416,14 +468,116 @@ const AdminPanel = ({ user }) => {
                             <SelectItem value="admin">Admin</SelectItem>
                           </SelectContent>
                         </Select>
-                      </td>
-                      <td>{u.department || '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      )}
+                    </div>
+                    <div>
+                      {u.department ? (
+                        <Badge variant="outline" className="text-[11px] font-semibold text-slate-700 border-slate-300 bg-slate-50">
+                          {u.department}
+                        </Badge>
+                      ) : (
+                        <span className="text-gray-400 text-[11px] italic">No tag</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
+
+          {/* Admin Edit User Modal */}
+          {editingUser && (
+            <Dialog open={!!editingUser} onOpenChange={(open) => { if (!open) setEditingUser(null); }}>
+              <DialogContent className="max-w-md" data-testid="edit-user-dialog">
+                <DialogHeader>
+                  <DialogTitle>Edit User Profile & Tags</DialogTitle>
+                  <DialogDescription className="text-sm text-gray-500">
+                    Modify user details, role assignments, and member tags.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleAdminUpdateUser} className="space-y-4">
+                  <div>
+                    <Label htmlFor="admin-user-email">Email (Account ID)</Label>
+                    <Input
+                      id="admin-user-email"
+                      value={editingUser.email}
+                      disabled
+                      className="bg-slate-100 cursor-not-allowed"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="admin-user-name">Full Name</Label>
+                    <Input
+                      id="admin-user-name"
+                      value={editingUser.name || ''}
+                      onChange={(e) => setEditingUser(prev => ({ ...prev, name: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="admin-user-dept">Department / User Tag</Label>
+                    <Input
+                      id="admin-user-dept"
+                      placeholder="e.g. Cardiology, Neurology, Research"
+                      value={editingUser.department || ''}
+                      onChange={(e) => setEditingUser(prev => ({ ...prev, department: e.target.value }))}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">This appears as the user tag badge in the sidebar and across the app.</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="admin-user-phone">Phone Number</Label>
+                    <Input
+                      id="admin-user-phone"
+                      placeholder="+91 1234567890"
+                      value={editingUser.phone || ''}
+                      onChange={(e) => setEditingUser(prev => ({ ...prev, phone: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="admin-user-bio">Bio</Label>
+                    <Textarea
+                      id="admin-user-bio"
+                      placeholder="User bio..."
+                      value={editingUser.bio || ''}
+                      onChange={(e) => setEditingUser(prev => ({ ...prev, bio: e.target.value }))}
+                      rows={3}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="admin-user-role">Role</Label>
+                    {editingUser.is_main_admin ? (
+                      <div className="mt-1.5 flex items-center gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-800">
+                        <Shield className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                        <span>Role locked for Primary Admin (configured via system environment)</span>
+                      </div>
+                    ) : (
+                      <Select
+                        value={editingUser.role}
+                        onValueChange={(val) => setEditingUser(prev => ({ ...prev, role: val }))}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="member">Member</SelectItem>
+                          <SelectItem value="core">Core</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button type="button" variant="outline" onClick={() => setEditingUser(null)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">
+                      Save Changes
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
         </TabsContent>
 
         {/* Role Permissions Tab */}
@@ -451,37 +605,57 @@ const AdminPanel = ({ user }) => {
             <div className="space-y-6">
               <div>
                 <h4 className="font-medium text-gray-700 mb-3">Page Access</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {ALL_PAGES.map(page => (
-                    <label key={page.id} className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox
-                        checked={rolePermissions[selectedRole]?.pages?.includes(page.id)}
-                        onCheckedChange={() => togglePageAccess(selectedRole, page.id)}
-                        disabled={selectedRole === 'admin' && page.id === 'admin'}
-                      />
-                      <span className="text-sm">{page.label}</span>
-                    </label>
-                  ))}
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  {ALL_PAGES.map(page => {
+                    const isChecked = rolePermissions[selectedRole]?.pages?.includes(page.id);
+                    return (
+                      <label 
+                        key={page.id} 
+                        className={`flex items-center gap-2.5 p-2.5 rounded-lg border transition-colors cursor-pointer select-none ${
+                          isChecked
+                            ? 'bg-primary/5 border-primary/30 text-gray-900 font-medium'
+                            : 'bg-white border-slate-200 text-gray-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        <Checkbox
+                          checked={isChecked}
+                          onCheckedChange={() => togglePageAccess(selectedRole, page.id)}
+                          disabled={selectedRole === 'admin' && page.id === 'admin'}
+                        />
+                        <span className="text-sm">{page.label}</span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
 
               <div>
                 <h4 className="font-medium text-gray-700 mb-3">Actions per Page</h4>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {ALL_PAGES.filter(p => rolePermissions[selectedRole]?.pages?.includes(p.id)).map(page => (
-                    <div key={page.id} className="border border-slate-200 rounded-lg p-3">
+                    <div key={page.id} className="border border-slate-200 rounded-lg p-3 bg-slate-50/40">
                       <h5 className="font-medium text-sm text-gray-800 mb-2">{page.label}</h5>
-                      <div className="flex flex-wrap gap-3">
-                        {ALL_ACTIONS.map(action => (
-                          <label key={action.id} className="flex items-center gap-1.5 cursor-pointer">
-                            <Checkbox
-                              checked={rolePermissions[selectedRole]?.actions?.[page.id]?.includes(action.id)}
-                              onCheckedChange={() => toggleAction(selectedRole, page.id, action.id)}
-                              disabled={selectedRole === 'admin'}
-                            />
-                            <span className="text-xs">{action.label}</span>
-                          </label>
-                        ))}
+                      <div className="flex flex-wrap gap-2">
+                        {ALL_ACTIONS.map(action => {
+                          const isActionChecked = rolePermissions[selectedRole]?.actions?.[page.id]?.includes(action.id);
+                          return (
+                            <label 
+                              key={action.id} 
+                              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md border text-xs cursor-pointer select-none transition-colors ${
+                                isActionChecked
+                                  ? 'bg-white border-primary/40 text-primary font-medium shadow-2xs'
+                                  : 'bg-white border-slate-200 text-gray-600 hover:bg-slate-50'
+                              }`}
+                            >
+                              <Checkbox
+                                checked={isActionChecked}
+                                onCheckedChange={() => toggleAction(selectedRole, page.id, action.id)}
+                                disabled={selectedRole === 'admin'}
+                              />
+                              <span>{action.label}</span>
+                            </label>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
@@ -489,7 +663,7 @@ const AdminPanel = ({ user }) => {
               </div>
             </div>
 
-            <Button onClick={saveRolePermissions} disabled={loading} className="mt-6">
+            <Button onClick={saveRolePermissions} disabled={loading} className="mt-6 w-full sm:w-auto">
               <Save className="w-4 h-4 mr-2" />
               {loading ? 'Saving...' : 'Save Role Permissions'}
             </Button>
@@ -570,7 +744,7 @@ const AdminPanel = ({ user }) => {
                       <Button variant="ghost" size="sm" onClick={() => toggleBlogPublish(blog.id, !blog.published)}>
                         {blog.published ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </Button>
-                      <Dialog>
+                      <Dialog open={editingBlog?.id === blog.id} onOpenChange={(open) => { if (!open) setEditingBlog(null); }}>
                         <DialogTrigger asChild>
                           <Button variant="ghost" size="sm" onClick={() => setEditingBlog(blog)}>
                             <Edit className="w-4 h-4" />
@@ -579,6 +753,9 @@ const AdminPanel = ({ user }) => {
                         <DialogContent className="max-w-2xl">
                           <DialogHeader>
                             <DialogTitle>Edit Blog</DialogTitle>
+                            <DialogDescription className="text-sm text-gray-500">
+                              Update article title, content, or publication tags.
+                            </DialogDescription>
                           </DialogHeader>
                           {editingBlog && editingBlog.id === blog.id && (
                             <div className="space-y-4">
@@ -664,7 +841,7 @@ const AdminPanel = ({ user }) => {
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Manage Integrations</h3>
             <p className="text-sm text-gray-600 mb-6">Configure API keys and credentials. Changes may require server restart.</p>
 
-            <div className="space-y-6">
+            <form onSubmit={(e) => { e.preventDefault(); saveIntegrations(); }} className="space-y-6">
               <div className="border border-slate-200 rounded-lg p-4">
                 <h4 className="font-semibold text-gray-700 mb-3">Google OAuth</h4>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -674,7 +851,7 @@ const AdminPanel = ({ user }) => {
                   </div>
                   <div>
                     <Label>Client Secret</Label>
-                    <Input type="password" value={integrations.GOOGLE_CLIENT_SECRET || ''} onChange={(e) => setIntegrations({...integrations, GOOGLE_CLIENT_SECRET: e.target.value})} />
+                    <Input type="password" autoComplete="new-password" value={integrations.GOOGLE_CLIENT_SECRET || ''} onChange={(e) => setIntegrations({...integrations, GOOGLE_CLIENT_SECRET: e.target.value})} />
                   </div>
                 </div>
               </div>
@@ -692,7 +869,7 @@ const AdminPanel = ({ user }) => {
                   </div>
                   <div>
                     <Label>API Secret</Label>
-                    <Input type="password" value={integrations.CLOUDINARY_API_SECRET || ''} onChange={(e) => setIntegrations({...integrations, CLOUDINARY_API_SECRET: e.target.value})} />
+                    <Input type="password" autoComplete="new-password" value={integrations.CLOUDINARY_API_SECRET || ''} onChange={(e) => setIntegrations({...integrations, CLOUDINARY_API_SECRET: e.target.value})} />
                   </div>
                 </div>
               </div>
@@ -706,7 +883,7 @@ const AdminPanel = ({ user }) => {
                   </div>
                   <div>
                     <Label>App Password</Label>
-                    <Input type="password" value={integrations.GMAIL_APP_PASSWORD || ''} onChange={(e) => setIntegrations({...integrations, GMAIL_APP_PASSWORD: e.target.value})} />
+                    <Input type="password" autoComplete="new-password" value={integrations.GMAIL_APP_PASSWORD || ''} onChange={(e) => setIntegrations({...integrations, GMAIL_APP_PASSWORD: e.target.value})} />
                   </div>
                 </div>
               </div>
@@ -719,11 +896,11 @@ const AdminPanel = ({ user }) => {
                 </div>
               </div>
 
-              <Button onClick={saveIntegrations} disabled={loading} className="w-full">
+              <Button type="submit" disabled={loading} className="w-full sm:w-auto">
                 <Save className="w-4 h-4 mr-2" />
                 {loading ? 'Saving...' : 'Save All Integrations'}
               </Button>
-            </div>
+            </form>
           </div>
         </TabsContent>
 

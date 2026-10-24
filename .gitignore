@@ -90,3 +90,12 @@ backend/.venv/
 .env.production.local
 *.env
 *.env.*
+
+# Local instructions, implementation plans & reports
+instructions.md
+implementation_plan.md
+report.md
+PROJECT_STATE.md
+scripts/archive/
+scripts/archive
+

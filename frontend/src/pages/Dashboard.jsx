@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { formatDistanceToNow } from 'date-fns';
@@ -14,17 +14,8 @@ import { formatDistanceToNow } from 'date-fns';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-const DEFAULT_PERMISSIONS = {
-  member: {
-    pages: ['feed', 'chat', 'threads', 'assignments', 'blogs', 'calendar', 'messages'],
-  },
-  core: {
-    pages: ['feed', 'chat', 'threads', 'assignments', 'blogs', 'calendar', 'tasks', 'messages'],
-  },
-  admin: {
-    pages: ['feed', 'chat', 'threads', 'assignments', 'blogs', 'calendar', 'tasks', 'messages', 'admin'],
-  }
-};
+import { DEFAULT_PERMISSIONS } from '@/constants/permissions';
+import { useSocket } from '@/context/SocketContext';
 
 const Dashboard = ({ user, rolePermissions, onLogout }) => {
   const navigate = useNavigate();
@@ -60,17 +51,71 @@ const Dashboard = ({ user, rolePermissions, onLogout }) => {
 
   const navItems = getNavItems();
 
+  const socket = useSocket();
+
   useEffect(() => {
     fetchNotifications();
     fetchLinkConfig();
     fetchUnreadDMs();
     requestNotificationPermission();
+    // Fallback sync every 60 seconds (relaxed from 15s since events are pushed via WebSockets)
     const interval = setInterval(() => {
       fetchNotifications();
       fetchUnreadDMs();
-    }, 15000);
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewNotification = () => {
+      fetchNotifications();
+    };
+
+    const handleNewDM = () => {
+      fetchUnreadDMs();
+    };
+
+    socket.on('new_message', handleNewDM);
+    socket.on('new_message_request', handleNewDM);
+    socket.on('messages_marked_read', handleNewDM);
+    socket.on('mention', handleNewNotification);
+    socket.on('new_announcement', handleNewNotification);
+    socket.on('new_task', handleNewNotification);
+    socket.on('calendar_event', handleNewNotification);
+    socket.on('notifications_updated', handleNewNotification);
+
+    return () => {
+      socket.off('new_message', handleNewDM);
+      socket.off('new_message_request', handleNewDM);
+      socket.off('messages_marked_read', handleNewDM);
+      socket.off('mention', handleNewNotification);
+      socket.off('new_announcement', handleNewNotification);
+      socket.off('new_task', handleNewNotification);
+      socket.off('calendar_event', handleNewNotification);
+      socket.off('notifications_updated', handleNewNotification);
+    };
+  }, [socket]);
+
+  // Synchronize notifications and DMs across in-tab components and navigation
+  useEffect(() => {
+    const handleNotifsSync = () => fetchNotifications();
+    const handleDMsSync = () => fetchUnreadDMs();
+    window.addEventListener('notifications_updated', handleNotifsSync);
+    window.addEventListener('messages_read', handleDMsSync);
+    return () => {
+      window.removeEventListener('notifications_updated', handleNotifsSync);
+      window.removeEventListener('messages_read', handleDMsSync);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (location.pathname === '/notifications' || location.pathname.startsWith('/messages')) {
+      fetchNotifications();
+      fetchUnreadDMs();
+    }
+  }, [location.pathname]);
 
   const requestNotificationPermission = async () => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -82,7 +127,7 @@ const Dashboard = ({ user, rolePermissions, onLogout }) => {
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification(title, {
         body,
-        icon: 'https://customer-assets.emergentagent.com/job_teamchat-portal/artifacts/r1igb56v_logoo.jpg',
+        icon: '/images/logo.jpg',
         tag: 'medvigyaan-dm'
       });
     }
@@ -148,7 +193,7 @@ const Dashboard = ({ user, rolePermissions, onLogout }) => {
       <div className="p-4 border-b border-slate-700">
         <div className="flex items-center gap-3">
           <img
-            src="https://customer-assets.emergentagent.com/job_teamchat-portal/artifacts/r1igb56v_logoo.jpg"
+            src="/images/logo.jpg"
             alt="MedVigyaan"
             className="w-10 h-10 rounded-lg"
           />
@@ -230,7 +275,7 @@ const Dashboard = ({ user, rolePermissions, onLogout }) => {
   );
 
   return (
-    <div className="flex h-screen bg-slate-100" data-testid="dashboard-container">
+    <div className="flex min-h-screen min-h-[100dvh] h-[100dvh] bg-slate-100 overflow-hidden" data-testid="dashboard-container">
       {/* Desktop Sidebar - Hidden on mobile */}
       <div className="hidden lg:flex w-64 bg-slate-800 text-white flex-col">
         <SidebarContent />
@@ -239,6 +284,10 @@ const Dashboard = ({ user, rolePermissions, onLogout }) => {
       {/* Mobile Sidebar - Sheet */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent side="left" className="w-64 p-0 bg-slate-800 text-white border-slate-700">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Navigation Menu</SheetTitle>
+            <SheetDescription>Main navigation sidebar for The MedVigyaan</SheetDescription>
+          </SheetHeader>
           <div className="flex flex-col h-full">
             <SidebarContent />
           </div>
@@ -246,7 +295,7 @@ const Dashboard = ({ user, rolePermissions, onLogout }) => {
       </Sheet>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
         {/* Top Bar */}
         <header className="bg-white border-b border-slate-200 px-4 lg:px-6 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -256,6 +305,7 @@ const Dashboard = ({ user, rolePermissions, onLogout }) => {
               size="icon"
               className="lg:hidden"
               onClick={() => setSidebarOpen(true)}
+              aria-label="Open sidebar menu"
               data-testid="mobile-menu-button"
             >
               <Menu className="w-5 h-5" />
@@ -264,8 +314,10 @@ const Dashboard = ({ user, rolePermissions, onLogout }) => {
             {/* Mobile Logo/Title */}
             <div className="flex items-center gap-2 lg:hidden">
               <img
-                src="https://customer-assets.emergentagent.com/job_teamchat-portal/artifacts/r1igb56v_logoo.jpg"
-                alt="MedVigyaan"
+                src="/images/logo.jpg"
+                alt="MedVigyaan Logo"
+                width={28}
+                height={28}
                 className="w-7 h-7 rounded-lg object-cover"
               />
               <span className="font-bold text-sm text-slate-800">MedVigyaan</span>
@@ -283,18 +335,20 @@ const Dashboard = ({ user, rolePermissions, onLogout }) => {
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowSearch(!showSearch)}
+                aria-label="Toggle search input"
                 data-testid="search-button"
               >
                 <Search className="w-5 h-5" />
               </Button>
               {showSearch && (
-                <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-lg shadow-lg p-2 z-50">
+                <div className="absolute right-0 top-full mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-lg shadow-lg p-2 z-50">
                   <Input
                     type="text"
                     placeholder="Search this page..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     autoFocus
+                    aria-label="Search current page"
                     data-testid="search-input"
                     className="w-full"
                   />
@@ -311,6 +365,7 @@ const Dashboard = ({ user, rolePermissions, onLogout }) => {
                   navigate('/messages');
                   setUnreadDMCount(0);
                 }}
+                aria-label="Direct messages"
                 data-testid="dm-button"
                 className="relative"
               >
@@ -322,63 +377,86 @@ const Dashboard = ({ user, rolePermissions, onLogout }) => {
             )}
             
             {/* Notification Bell */}
-            <Popover open={showNotifications} onOpenChange={setShowNotifications}>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative" data-testid="notification-bell">
-                  <Bell className="w-5 h-5" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80" align="end">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold">Notifications</h3>
+            {/* Desktop Floater Popover */}
+            <div className="hidden sm:block">
+              <Popover open={showNotifications} onOpenChange={setShowNotifications}>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative" aria-label="Notifications" data-testid="notification-bell">
+                    <Bell className="w-5 h-5" />
                     {unreadCount > 0 && (
-                      <Button variant="ghost" size="sm" onClick={markAllAsRead} data-testid="mark-all-read">
-                        Mark all read
-                      </Button>
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
                     )}
-                  </div>
-                  <ScrollArea className="h-96">
-                    <div className="space-y-2">
-                      {notifications.length === 0 ? (
-                        <p className="text-sm text-gray-500 text-center py-8">No notifications</p>
-                      ) : (
-                        notifications.map((notif) => (
-                          <div
-                            key={notif.id}
-                            className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                              notif.read ? 'bg-slate-50' : 'bg-blue-50 border border-blue-200'
-                            }`}
-                            onClick={() => {
-                              markAsRead(notif.id);
-                              if (notif.link) navigate(notif.link);
-                              setShowNotifications(false);
-                            }}
-                            data-testid={`notification-${notif.id}`}
-                          >
-                            <p className="text-sm font-medium text-gray-800">{notif.title}</p>
-                            <p className="text-xs text-gray-600 mt-1">{notif.message}</p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true })}
-                            </p>
-                          </div>
-                        ))
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 max-w-[calc(100vw-2rem)]" align="end">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold">Notifications</h3>
+                      {unreadCount > 0 && (
+                        <Button variant="ghost" size="sm" onClick={markAllAsRead} data-testid="mark-all-read">
+                          Mark all read
+                        </Button>
                       )}
                     </div>
-                  </ScrollArea>
-                </div>
-              </PopoverContent>
-            </Popover>
+                    <ScrollArea className="h-96">
+                      <div className="space-y-2">
+                        {notifications.length === 0 ? (
+                          <p className="text-sm text-gray-500 text-center py-8">No notifications</p>
+                        ) : (
+                          notifications.map((notif) => (
+                            <div
+                              key={notif.id}
+                              className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                                notif.read ? 'bg-slate-50' : 'bg-blue-50 border border-blue-200'
+                              }`}
+                              onClick={() => {
+                                markAsRead(notif.id);
+                                if (notif.link) navigate(notif.link);
+                                setShowNotifications(false);
+                              }}
+                              data-testid={`notification-${notif.id}`}
+                            >
+                              <p className="text-sm font-medium text-gray-800">{notif.title}</p>
+                              <p className="text-xs text-gray-600 mt-1">{notif.message}</p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true })}
+                              </p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Mobile Full-Page Navigator */}
+            <div className="block sm:hidden">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative min-h-[44px] min-w-[44px]"
+                aria-label="Notifications"
+                onClick={() => navigate('/notifications')}
+                data-testid="mobile-notification-bell"
+              >
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute 1 top-1 right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </Button>
+            </div>
 
             <Button
               variant="ghost"
               size="icon"
               onClick={onLogout}
+              aria-label="Log out of account"
               data-testid="logout-button"
             >
               <LogOut className="w-5 h-5" />
@@ -387,11 +465,16 @@ const Dashboard = ({ user, rolePermissions, onLogout }) => {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto p-4 lg:p-6">
-          <div className="max-w-7xl mx-auto">
-            <Outlet context={{ searchQuery }} />
-          </div>
-        </main>
+        {(() => {
+          const isChatRoute = location.pathname === '/' || location.pathname.startsWith('/messages');
+          return (
+            <main className={`flex-1 min-h-0 ${isChatRoute ? 'overflow-hidden p-0 lg:p-6' : 'overflow-y-auto overscroll-contain p-4 lg:p-6'}`}>
+              <div className={`max-w-7xl mx-auto ${isChatRoute ? 'h-full' : ''}`}>
+                <Outlet context={{ searchQuery, onNotificationsUpdated: fetchNotifications, onMessagesRead: fetchUnreadDMs }} />
+              </div>
+            </main>
+          );
+        })()}
       </div>
     </div>
   );

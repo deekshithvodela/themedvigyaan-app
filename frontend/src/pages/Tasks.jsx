@@ -6,7 +6,7 @@ import { ListTodo, Plus, Calendar, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -39,8 +39,8 @@ const Tasks = ({ user }) => {
   const [showDialog, setShowDialog] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const canCreateTask = user.role === 'admin' || user.role === 'team_lead';
-  const canEditAll = user.role === 'admin' || user.role === 'team_lead';
+  const canCreateTask = user.role === 'admin' || user.role === 'core';
+  const canEditAll = user.role === 'admin' || user.role === 'core';
 
   useEffect(() => {
     fetchTasks();
@@ -91,9 +91,9 @@ const Tasks = ({ user }) => {
     }
   };
 
-  const updateTaskStatus = async (taskId, newStatus) => {
+  const updateTaskStatus = async (taskId, newStatus, assigneeUserId) => {
     try {
-      await axios.put(`${API}/tasks/${taskId}`, { status: newStatus });
+      await axios.put(`${API}/tasks/${taskId}`, { status: newStatus, user_id: assigneeUserId });
       await fetchTasks();
       toast.success('Status updated!');
     } catch (error) {
@@ -121,15 +121,15 @@ const Tasks = ({ user }) => {
 
   return (
     <div className="space-y-6" data-testid="tasks-page">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Task Management</h2>
+          <h1 className="text-2xl font-bold text-gray-800">Task Management</h1>
           <p className="text-gray-600 text-sm mt-1">Collaborate on tasks and track progress</p>
         </div>
         {canCreateTask && (
           <Dialog open={showDialog} onOpenChange={setShowDialog}>
             <DialogTrigger asChild>
-              <Button data-testid="new-task-button">
+              <Button data-testid="new-task-button" className="w-full sm:w-auto h-9 text-sm">
                 <Plus className="w-4 h-4 mr-2" />
                 New Task
               </Button>
@@ -137,6 +137,9 @@ const Tasks = ({ user }) => {
             <DialogContent data-testid="new-task-dialog">
               <DialogHeader>
                 <DialogTitle>Create New Task</DialogTitle>
+                <DialogDescription className="text-sm text-gray-500">
+                  Assign a new task and track progress with team members.
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={createTask} className="space-y-4">
                 <div>
@@ -226,7 +229,7 @@ const Tasks = ({ user }) => {
                   {canCreateTask && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="sm" data-testid={`delete-task-${task.id}`}>
+                        <Button variant="ghost" size="sm" aria-label="Delete task" data-testid={`delete-task-${task.id}`}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </AlertDialogTrigger>
@@ -274,10 +277,10 @@ const Tasks = ({ user }) => {
                           {canEdit && (
                             <Select
                               value={assignee.status}
-                              onValueChange={(value) => updateTaskStatus(task.id, value)}
+                              onValueChange={(value) => updateTaskStatus(task.id, value, assignee.user_id)}
                               disabled={!canEdit}
                             >
-                              <SelectTrigger className="w-32" data-testid={`status-select-${assignee.user_id}`}>
+                              <SelectTrigger className="w-32" aria-label="Select task status" data-testid={`status-select-${assignee.user_id}`}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>

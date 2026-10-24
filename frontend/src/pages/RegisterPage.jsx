@@ -31,6 +31,19 @@ const RegisterPage = ({ onLogin }) => {
         name: decoded.name,
         picture: decoded.picture
       });
+
+      // Quick check: If user already has an active registered account, redirect to login
+      try {
+        const loginCheck = await axios.post(`${API}/auth/google`, {
+          token: credentialResponse.credential
+        });
+        if (loginCheck.data?.token) {
+          toast.info('You are already registered! Redirecting to login...');
+          navigate('/login', { state: { email: decoded.email } });
+        }
+      } catch (checkErr) {
+        // If not registered (403), user remains on register page to fill out details
+      }
     } catch (error) {
       console.error('Failed to decode Google token:', error);
       toast.error('Failed to process Google login');
@@ -58,7 +71,13 @@ const RegisterPage = ({ onLogin }) => {
       navigate('/');
     } catch (error) {
       console.error('Registration error:', error);
-      toast.error(error.response?.data?.detail || 'Registration failed');
+      const detail = error.response?.data?.detail || '';
+      if (detail.toLowerCase().includes('already registered')) {
+        toast.info('You are already registered! Taking you to the login page...');
+        navigate('/login', { state: { email: googleData?.email } });
+      } else {
+        toast.error(detail || 'Registration failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -72,12 +91,15 @@ const RegisterPage = ({ onLogin }) => {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
+    <div className="auth-container min-h-[100dvh] flex flex-col items-center justify-center py-6 px-4">
+      <div className="w-full max-w-[440px] my-auto">
+        <div className="auth-card">
         <div className="flex flex-col items-center mb-6">
           <img
-            src="https://customer-assets.emergentagent.com/job_teamchat-portal/artifacts/r1igb56v_logoo.jpg"
+            src="/images/logo.jpg"
             alt="MedVigyaan Logo"
+            width="80"
+            height="80"
             className="w-20 h-20 object-cover rounded-2xl mb-3 border-4 border-primary"
           />
           <h1 className="text-2xl font-bold text-gray-800 mb-1">Register</h1>
@@ -166,7 +188,8 @@ const RegisterPage = ({ onLogin }) => {
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 export default RegisterPage;

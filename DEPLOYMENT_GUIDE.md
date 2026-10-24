@@ -171,3 +171,29 @@ For production with better performance:
 - **Vercel Pro**: $20/mo (more bandwidth)
 
 Total: ~$36/mo for production-ready deployment
+
+---
+
+## Appendix: Additional & Updated Production Environment Variables
+
+### 1. Frontend (Vercel) Additional Variables
+```env
+# Google OAuth Web Client ID for Frontend
+REACT_APP_GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+
+# Privacy & Source Protection (Prevents DevTools from exposing unminified code)
+GENERATE_SOURCEMAP=false
+```
+
+### 2. Backend (Render / Railway) Additional Variables
+```env
+# Google Calendar Integration API Key (Optional)
+GOOGLE_CALENDAR_API_KEY=your_google_calendar_api_key
+
+# Explicit Production Environment Declaration (Enforces strict JWT and security headers)
+ENVIRONMENT=production
+
+# Main Admin Email (Protected Super-Admin; falls back to FIRST_ADMIN_EMAIL if omitted)
+MAIN_ADMIN_EMAIL=your_admin@gmail.com
+```
+

@@ -68,6 +68,11 @@ const webpackConfig = {
         webpackConfig.plugins.push(healthPluginInstance);
       }
 
+      // Suppress unminified source maps in production builds unless explicitly requested
+      if (process.env.NODE_ENV === 'production' && process.env.GENERATE_SOURCEMAP !== 'true') {
+        webpackConfig.devtool = false;
+      }
+
       return webpackConfig;
     },
   },

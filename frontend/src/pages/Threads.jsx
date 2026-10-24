@@ -6,7 +6,7 @@ import { MessageSquare, Plus, Clock, User, Trash2, Reply, ChevronDown, ChevronUp
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
@@ -20,6 +20,17 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { formatDistanceToNow } from 'date-fns';
+
+const safeFormatDistanceToNow = (dateStr) => {
+  if (!dateStr) return 'recently';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 'recently';
+    return formatDistanceToNow(d, { addSuffix: true });
+  } catch (e) {
+    return 'recently';
+  }
+};
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -51,32 +62,48 @@ const NestedReply = ({ reply, user, allReplies, onReply, onDelete, depth = 0 }) 
 
   return (
     <div 
-      className={`${depth > 0 ? 'border-l-2 border-slate-200 pl-1.5 ml-1 sm:pl-4 sm:ml-2' : ''}`}
+      className={`relative ${
+        depth > 0 
+          ? 'ml-2 sm:ml-4 pl-3 sm:pl-4 border-l-2 border-slate-200 hover:border-slate-300 transition-colors' 
+          : 'py-2 first:pt-0 last:pb-0'
+      }`}
       data-testid={`nested-reply-${reply.id}`}
     >
-      <div className="py-3">
-        <div className="flex items-start gap-2">
-          {childReplies.length > 0 && (
-            <button 
-              onClick={() => setCollapsed(!collapsed)}
-              className="mt-1 text-gray-400 hover:text-gray-600"
-            >
-              {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-            </button>
-          )}
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-semibold text-sm text-gray-800">{reply.author_name}</span>
+      <div className="py-2.5">
+        <div className="flex items-start gap-2.5">
+          {/* Consistent left slot for collapse toggle or alignment dot */}
+          <div className="w-5 flex-shrink-0 pt-0.5 flex justify-center">
+            {childReplies.length > 0 ? (
+              <button 
+                onClick={() => setCollapsed(!collapsed)}
+                className="text-gray-400 hover:text-gray-700 transition-colors focus:outline-none p-0.5 rounded hover:bg-slate-100"
+                aria-label={collapsed ? "Expand replies" : "Collapse replies"}
+                aria-expanded={!collapsed}
+                title={collapsed ? "Expand replies" : "Collapse replies"}
+              >
+                {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+              </button>
+            ) : (
+              <span className="block w-1.5 h-1.5 rounded-full bg-slate-300 mt-2" />
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <span className={`text-sm ${reply.author_name === '[Deleted User]' ? 'italic text-gray-400 font-normal' : 'font-semibold text-gray-800'}`}>
+                {reply.author_name}
+              </span>
               <span className="text-xs text-gray-500">
-                {formatDistanceToNow(new Date(reply.created_at), { addSuffix: true })}
+                {safeFormatDistanceToNow(reply.created_at)}
               </span>
             </div>
-            <p className="text-gray-700 text-sm">{reply.content}</p>
+            <p className="text-gray-700 text-sm whitespace-pre-wrap">{reply.content}</p>
             <div className="flex items-center gap-3 mt-2">
               {depth < maxDepth && (
                 <button
                   onClick={() => setShowReplyForm(!showReplyForm)}
                   className="text-xs text-gray-500 hover:text-primary flex items-center gap-1"
+                  aria-label="Reply to comment"
                 >
                   <Reply className="w-3 h-3" />
                   Reply
@@ -85,7 +112,7 @@ const NestedReply = ({ reply, user, allReplies, onReply, onDelete, depth = 0 }) 
               {(reply.author_id === user.id || user.role === 'admin') && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <button className="text-xs text-gray-500 hover:text-red-500 flex items-center gap-1">
+                    <button className="text-xs text-gray-500 hover:text-red-500 flex items-center gap-1" aria-label="Delete comment">
                       <Trash2 className="w-3 h-3" />
                       Delete
                     </button>
@@ -133,7 +160,7 @@ const NestedReply = ({ reply, user, allReplies, onReply, onDelete, depth = 0 }) 
 
       {/* Nested child replies */}
       {!collapsed && childReplies.length > 0 && (
-        <div className="space-y-1">
+        <div className="mt-1 space-y-1">
           {childReplies.map((childReply) => (
             <NestedReply
               key={childReply.id}
@@ -255,8 +282,8 @@ const Threads = ({ user }) => {
   if (selectedThread) {
     return (
       <div className="space-y-6" data-testid="thread-detail-view">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={() => setSelectedThread(null)} data-testid="back-to-threads-button">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Button variant="outline" size="sm" onClick={() => setSelectedThread(null)} data-testid="back-to-threads-button">
             ← Back to Threads
           </Button>
           {user.role === 'admin' && (
@@ -286,23 +313,23 @@ const Threads = ({ user }) => {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">{selectedThread.title}</h2>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">{selectedThread.title}</h1>
           <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
-            <span className="flex items-center gap-1">
+            <span className={`flex items-center gap-1 ${selectedThread.author_name === '[Deleted User]' ? 'italic text-gray-400' : ''}`}>
               <User className="w-4 h-4" /> {selectedThread.author_name}
             </span>
             <span className="flex items-center gap-1">
               <Clock className="w-4 h-4" />
-              {formatDistanceToNow(new Date(selectedThread.created_at), { addSuffix: true })}
+              {safeFormatDistanceToNow(selectedThread.created_at)}
             </span>
           </div>
           <p className="text-gray-700 whitespace-pre-wrap">{selectedThread.content}</p>
         </div>
 
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-800">
+          <h2 className="text-lg font-semibold text-gray-800">
             Replies ({replies.length})
-          </h3>
+          </h2>
 
           {/* Root reply form */}
           <form onSubmit={handleRootReply} className="bg-white rounded-lg shadow-sm border border-slate-200 p-4" data-testid="reply-form">
@@ -320,7 +347,7 @@ const Threads = ({ user }) => {
           </form>
 
           {/* Nested replies */}
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 divide-y divide-slate-100">
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 divide-y divide-slate-100 p-4 sm:p-5">
             {rootReplies.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
                 <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -347,14 +374,14 @@ const Threads = ({ user }) => {
 
   return (
     <div className="space-y-6" data-testid="threads-page">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Threads</h2>
+          <h1 className="text-2xl font-bold text-gray-800">Threads</h1>
           <p className="text-gray-600 text-sm mt-1">Join discussions and share knowledge</p>
         </div>
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogTrigger asChild>
-            <Button data-testid="new-thread-button">
+            <Button data-testid="new-thread-button" className="w-full sm:w-auto h-9 text-sm">
               <Plus className="w-4 h-4 mr-2" />
               New Thread
             </Button>
@@ -362,6 +389,9 @@ const Threads = ({ user }) => {
           <DialogContent data-testid="new-thread-dialog">
             <DialogHeader>
               <DialogTitle>Create New Thread</DialogTitle>
+              <DialogDescription className="text-sm text-gray-500">
+                Start a clinical discussion or ask questions to the community.
+              </DialogDescription>
             </DialogHeader>
             <form onSubmit={createThread} className="space-y-4">
               <div>
@@ -409,10 +439,10 @@ const Threads = ({ user }) => {
             onClick={() => setSelectedThread(thread)}
             data-testid={`thread-${thread.id}`}
           >
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">{thread.title}</h3>
+            <h2 className="text-lg font-semibold text-gray-800 mb-2">{thread.title}</h2>
             <p className="text-gray-600 text-sm mb-3 line-clamp-2">{thread.content}</p>
             <div className="flex items-center justify-between text-xs text-gray-500">
-              <span className="flex items-center gap-1">
+              <span className={`flex items-center gap-1 ${thread.author_name === '[Deleted User]' ? 'italic text-gray-400' : ''}`}>
                 <User className="w-3 h-3" /> {thread.author_name}
               </span>
               <span className="flex items-center gap-3">
@@ -421,7 +451,7 @@ const Threads = ({ user }) => {
                 </span>
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
-                  {formatDistanceToNow(new Date(thread.last_activity), { addSuffix: true })}
+                  {safeFormatDistanceToNow(thread.last_activity || thread.created_at)}
                 </span>
               </span>
             </div>
